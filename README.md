@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>🎡 马卡龙转盘</title>
+  <title>🎡 游戏转盘</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
@@ -66,7 +66,7 @@
   </style>
 </head>
 <body>
-  <h1>🎡 马卡龙转盘</h1>
+  <h1>🎡 游戏转盘</h1>
   <div id="wheel-container">
     <div class="pointer"></div>
     <canvas id="wheel" width="300" height="300"></canvas>
