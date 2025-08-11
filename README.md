@@ -2,22 +2,38 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>🎡 游戏转盘</title>
+  <title>🎡 马卡龙转盘</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: "Comic Sans MS", cursive;
       text-align: center;
-      background-color: #fffbe6;
+      background-color: #fffafc;
       padding: 20px;
     }
     h1 {
-      color: #ff69b4;
+      color: #ff80ab;
+    }
+    #wheel-container {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      margin: 20px auto;
     }
     canvas {
-      margin-top: 20px;
       border-radius: 50%;
-      background-color: #ffe4e1;
+      background-color: #fff0f6;
+    }
+    .pointer {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 15px solid transparent;
+      border-right: 15px solid transparent;
+      border-bottom: 30px solid #ff80ab;
     }
     .inputs {
       display: grid;
@@ -47,31 +63,14 @@
       font-size: 20px;
       color: #d63384;
     }
-    #history {
-      margin-top: 30px;
-      text-align: left;
-    }
-    .history-item {
-      margin-bottom: 10px;
-      padding: 10px;
-      background-color: #fce4ec;
-      border-radius: 8px;
-    }
-    .history-item button {
-      margin-top: 5px;
-      background-color: #ff69b4;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 14px;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
-  <h1>🎡 游戏转盘</h1>
-  <canvas id="wheel" width="300" height="300"></canvas>
+  <h1>🎡 马卡龙转盘</h1>
+  <div id="wheel-container">
+    <div class="pointer"></div>
+    <canvas id="wheel" width="300" height="300"></canvas>
+  </div>
 
   <div class="inputs">
     <input type="text" placeholder="模块 1" id="item0">
@@ -85,31 +84,43 @@
   <button onclick="spin()">🎲 转一下！</button>
   <div id="result"></div>
 
-  <div id="history"></div>
+  <!-- 音效资源 -->
+  <audio id="spinSound" src="spin.mp3" preload="auto"></audio>
+  <audio id="dingSound" src="ding.mp3" preload="auto"></audio>
 
   <script>
     const canvas = document.getElementById("wheel");
     const ctx = canvas.getContext("2d");
     const radius = canvas.width / 2;
     let items = ["模块 1", "模块 2", "模块 3", "模块 4", "模块 5", "模块 6"];
-    const colors = ["#ff9999", "#ffcc99", "#ffff99", "#ccff99", "#99ffcc", "#99ccff"];
+
+    // 马卡龙色系
+    const colors = ["#B2F2BB", "#FFC9DE", "#FFF3BF", "#A5D8FF", "#D0BFFF", "#FFD8A8"];
+    let angleOffset = 0;
+    let spinning = false;
+
+    const spinSound = document.getElementById("spinSound");
+    const dingSound = document.getElementById("dingSound");
 
     function drawWheel() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       for (let i = 0; i < 6; i++) {
-        const angle = (i * Math.PI * 2) / 6;
+        const angle = (i * Math.PI * 2) / 6 + angleOffset;
         ctx.beginPath();
         ctx.moveTo(radius, radius);
         ctx.arc(radius, radius, radius, angle, angle + Math.PI * 2 / 6);
         ctx.fillStyle = colors[i];
         ctx.fill();
+        ctx.strokeStyle = "rgba(150,150,150,0.3)";
+        ctx.lineWidth = 2;
         ctx.stroke();
+
         ctx.save();
         ctx.translate(radius, radius);
         ctx.rotate(angle + Math.PI / 6);
         ctx.textAlign = "center";
-        ctx.fillStyle = "#333";
-        ctx.font = "16px Comic Sans MS";
+        ctx.fillStyle = "#444";
+        ctx.font = "bold 18px 'Comic Sans MS', sans-serif";
         ctx.fillText(items[i], radius / 2, 0);
         ctx.restore();
       }
@@ -118,57 +129,45 @@
     drawWheel();
 
     function spin() {
+      if (spinning) return;
       items = [];
       for (let i = 0; i < 6; i++) {
         const val = document.getElementById("item" + i).value || `模块 ${i + 1}`;
         items.push(val);
       }
-      drawWheel();
 
-      const selected = Math.floor(Math.random() * 6);
-      document.getElementById("result").textContent = `🎉 结果：${items[selected]}`;
+      let angle = 0;
+      let speed = Math.random() * 0.2 + 0.3;
+      let deceleration = 0.005;
+      spinning = true;
 
-      saveToHistory(items);
-      displayHistory();
+      spinSound.currentTime = 0;
+      spinSound.play();
+
+      const interval = setInterval(() => {
+        angle += speed;
+        speed -= deceleration;
+        angleOffset = angle;
+        drawWheel();
+
+        if (speed <= 0) {
+          clearInterval(interval);
+          spinning = false;
+          spinSound.pause();
+          dingSound.currentTime = 0;
+          dingSound.play();
+          const selectedIndex = getSelectedIndex(angleOffset);
+          document.getElementById("result").textContent = `🎉 结果：${items[selectedIndex]}`;
+        }
+      }, 20);
     }
 
-    function saveToHistory(data) {
-      const history = JSON.parse(localStorage.getItem("wheelHistory") || "[]");
-      const timestamp = new Date().toLocaleString();
-      history.push({ timestamp, data });
-      localStorage.setItem("wheelHistory", JSON.stringify(history));
+    function getSelectedIndex(offset) {
+      const normalized = offset % (Math.PI * 2);
+      const sectorAngle = (Math.PI * 2) / 6;
+      const index = Math.floor((Math.PI * 1.5 - normalized + sectorAngle / 2) / sectorAngle) % 6;
+      return (index + 6) % 6;
     }
-
-    function displayHistory() {
-      const history = JSON.parse(localStorage.getItem("wheelHistory") || "[]");
-      const container = document.getElementById("history");
-      container.innerHTML = "<h2>📜 历史设置</h2>";
-      history.reverse().forEach((entry, index) => {
-        const div = document.createElement("div");
-        div.className = "history-item";
-        div.innerHTML = `
-          <strong>${entry.timestamp}</strong><br>
-          ${entry.data.map((d, i) => `模块 ${i + 1}: ${d}`).join("<br>")}
-          <br><button onclick="restoreHistory(${history.length - 1 - index})">恢复设置</button>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    function restoreHistory(index) {
-      const history = JSON.parse(localStorage.getItem("wheelHistory") || "[]");
-      const entry = history[index];
-      entry.data.forEach((val, i) => {
-        document.getElementById("item" + i).value = val;
-      });
-      items = entry.data;
-      drawWheel();
-      document.getElementById("result").textContent = `✅ 已恢复设置：${entry.timestamp}`;
-    }
-
-    // 初始化历史记录显示
-    displayHistory();
   </script>
 </body>
 </html>
-# luckywheel
